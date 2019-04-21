@@ -152,14 +152,6 @@ fn mmv_lva_heuristic(commit: &Commit) -> f32 {
     }
 }
 
-fn order_movements_heuristically(commits: &mut Vec<Commit>) {
-    commits.sort_unstable_by(|a, b| {
-        mmv_lva_heuristic(b)
-            .partial_cmp(&mmv_lva_heuristic(a))
-            .unwrap_or(Ordering::Equal)
-    });
-}
-
 fn order_movements_intuitively(
         experience: &HashMap<Patch, u32>, commits: &mut Vec<Commit>) {
     commits.sort_unstable_by(|a, b| {
@@ -252,7 +244,6 @@ pub fn α_β_negamax_search(
         }
     };
 
-    order_movements_heuristically(&mut premonitions);
     {
         let experience = intuition_bank.lock();
         order_movements_intuitively(&experience, &mut premonitions)
@@ -336,7 +327,6 @@ pub fn potentially_timebound_kickoff(
     } else {
         world.lookahead()
     };
-    order_movements_heuristically(&mut premonitions);
     {
         let experience = intuition_bank.lock();
         order_movements_intuitively(&experience, &mut premonitions)
