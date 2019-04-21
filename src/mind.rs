@@ -153,12 +153,25 @@ fn mmv_lva_heuristic(commit: &Commit) -> f32 {
 }
 
 fn order_movements_intuitively(
-        experience: &HashMap<Patch, u32>, commits: &mut Vec<Commit>) {
-    commits.sort_unstable_by(|a, b| {
-        let a_feels = experience.get(&a.patch);
-        let b_feels = experience.get(&b.patch);
-        b_feels.cmp(&a_feels)
+        experience: &HashMap<Patch, u32>, commits: &mut Vec<Commit>) -> Vec<Commit> {
+    //let sorted = Vec::with_capacity(commits.len());
+    //sorted
+    //
+    /*
+    let sorted: Vec<(Commit, Option<u32>)> = commits.into_iter().map(
+        |commit| {
+            (commit, experience.get(&commit.patch))
+        }
+    ).collect();
+    */
+    let mut sorted: Vec<(Commit, Option<&u32>)> = Vec::with_capacity(commits.len());
+    for c in commits {
+        sorted.push((*c, experience.get(&c.patch)));
+    }
+    sorted.sort_unstable_by(|a, b| {
+        b.1.cmp(&a.1)
     });
+    sorted.iter().map(|c| { c.0 }).collect()
 }
 
 pub type Variation = Vec<Patch>;
@@ -246,7 +259,7 @@ pub fn α_β_negamax_search(
 
     {
         let experience = intuition_bank.lock();
-        order_movements_intuitively(&experience, &mut premonitions)
+        premonitions = order_movements_intuitively(&experience, &mut premonitions)
     }
     for premonition in premonitions {
         let mut value = NEG_INFINITY;  // can't hurt to be pessimistic
@@ -329,7 +342,7 @@ pub fn potentially_timebound_kickoff(
     };
     {
         let experience = intuition_bank.lock();
-        order_movements_intuitively(&experience, &mut premonitions)
+        premonitions = order_movements_intuitively(&experience, &mut premonitions)
     }
     let mut forecasts = Vec::with_capacity(40);
     let mut time_radios: Vec<(Commit, mpsc::Receiver<Lodestar>)> = Vec::new();
