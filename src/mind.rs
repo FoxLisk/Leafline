@@ -1,6 +1,5 @@
 use std::f32::{INFINITY, NEG_INFINITY};
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::default::Default;
 use std::fmt;
 use std::hash::BuildHasherDefault;
@@ -14,6 +13,7 @@ use time;
 use lru_cache::LruCache;
 use parking_lot;
 use twox_hash::XxHash;
+use fnv;
 
 use identity::{Agent, JobDescription, Team};
 use life::{Commit, Patch, WorldState};
@@ -153,7 +153,8 @@ fn mvv_lva_heuristic(commit: &Commit) -> f32 {
 }
 
 fn order_movements_intuitively(
-        experience: &HashMap<Patch, u32>, commits: &mut Vec<Commit>) -> Vec<Commit> {
+        experience: &fnv::FnvHashMap<Patch, u32>,
+        commits: &mut Vec<Commit>) -> Vec<Commit> {
     let mut sorted: Vec<(Commit, Option<&u32>, f32)> = Vec::with_capacity(commits.len());
     for c in commits {
         sorted.push((*c, experience.get(&c.patch), mvv_lva_heuristic(&c)));
@@ -221,7 +222,7 @@ pub fn α_β_negamax_search(
     world: WorldState, depth: i8, mut α: f32, β: f32, 
     memory_bank: Arc<parking_lot::Mutex<LruCache<SpaceTime, Lodestar,
                                     BuildHasherDefault<XxHash>>>>,
-    intuition_bank: Arc<parking_lot::Mutex<HashMap<Patch, u32>>>,
+    intuition_bank: Arc<parking_lot::Mutex<fnv::FnvHashMap<Patch, u32>>>,
     quiet: Option<u8>)
         -> Lodestar {
 
@@ -320,7 +321,7 @@ pub fn potentially_timebound_kickoff(
     extension_maybe: Option<u8>,
     nihilistically: bool,
     deadline_maybe: Option<time::Timespec>,
-    intuition_bank: Arc<parking_lot::Mutex<HashMap<Patch, u32>>>,
+    intuition_bank: Arc<parking_lot::Mutex<fnv::FnvHashMap<Patch, u32>>>,
     déjà_vu_bound: f32)
         -> Option<Vec<(Commit, f32, Variation)>> {
     let déjà_vu_table: LruCache<SpaceTime, Lodestar,
@@ -384,7 +385,7 @@ pub fn potentially_timebound_kickoff(
 pub fn kickoff(world: &WorldState, depth: u8, extension: Option<u8>,
                nihilistically: bool, déjà_vu_bound: f32)
                    -> Vec<(Commit, f32, Variation)> {
-    let experience_table: HashMap<Patch, u32> = HashMap::new();
+    let experience_table: fnv::FnvHashMap<Patch, u32> = fnv::FnvHashMap::default();
     let intuition_bank = Arc::new(parking_lot::Mutex::new(experience_table));
     potentially_timebound_kickoff(world, depth, extension, nihilistically, None,
                                   intuition_bank, déjà_vu_bound).unwrap()
@@ -396,7 +397,7 @@ pub fn iterative_deepening_kickoff(world: &WorldState, timeout: time::Duration,
                                    -> (Vec<(Commit, f32, Variation)>, u8) {
     let deadline = time::get_time() + timeout;
     let mut depth = 1;
-    let experience_table: HashMap<Patch, u32> = HashMap::new();
+    let experience_table = fnv::FnvHashMap::default();
     let intuition_bank = Arc::new(parking_lot::Mutex::new(experience_table));
     let mut forecasts = potentially_timebound_kickoff(
         world, depth, None, nihilistically, None,
@@ -417,7 +418,7 @@ pub fn fixed_depth_sequence_kickoff(world: &WorldState, depth_sequence: Vec<u8>,
                                     nihilistically: bool, déjà_vu_bound: f32)
                                     -> Vec<(Commit, f32, Variation)> {
     let mut depths = depth_sequence.iter();
-    let experience_table: HashMap<Patch, u32> = HashMap::new();
+    let experience_table = fnv::FnvHashMap::default();
     let intuition_bank = Arc::new(parking_lot::Mutex::new(experience_table));
     let mut forecasts = potentially_timebound_kickoff(
         world, *depths.next().expect("`depth_sequence` should be nonempty"),
