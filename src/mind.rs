@@ -440,10 +440,14 @@ mod tests {
     use self::test::Bencher;
 
     use time;
-    use super::{REWARD_FOR_INITIATIVE, kickoff, score};
+    use super::{REWARD_FOR_INITIATIVE, kickoff, score, SpaceTime};
     use space::Locale;
-    use life::WorldState;
-    use identity::Team;
+    use life::{WorldState, Patch};
+    use fnv;
+    use twox_hash::XxHash;
+    use std::hash::Hash;
+    use std::collections::hash_map;
+    use identity::{Agent, JobDescription, Team};
 
     const MOCK_DÉJÀ_VU_BOUND: f32 = 2.0;
 
@@ -454,6 +458,102 @@ mod tests {
             self.clear_blue_east_service_eligibility();
             self.clear_blue_west_service_eligibility();
         }
+    }
+
+    #[bench]
+    fn benchmark_hashing_spacetime_fnv(b: &mut Bencher) {
+        let w = WorldState::new();
+        let st = SpaceTime::new(w, 3);
+        let mut hasher = fnv::FnvHasher::default();
+
+        b.iter(|| {
+            for _ in 0..1000 {
+                st.hash(&mut hasher);
+            }
+        });
+    }
+
+    #[bench]
+    fn benchmark_hashing_spacetime_xx(b: &mut Bencher) {
+        let w = WorldState::new();
+        let mut hasher = XxHash::default();
+        let st = SpaceTime::new(w, 3);
+
+        b.iter(|| {
+            for _ in 0..1000 {
+                st.hash(&mut hasher);
+            }
+        });
+    }
+
+    #[bench]
+    fn benchmark_hashing_spacetime_sip(b: &mut Bencher) {
+        let w = WorldState::new();
+        let mut hasher = hash_map::DefaultHasher::new();
+        let st = SpaceTime::new(w, 3);
+
+        b.iter(|| {
+            for _ in 0..1000 {
+                st.hash(&mut hasher);
+            }
+        });
+    }
+
+    #[bench]
+    fn benchmark_hashing_patch_fnv(b: &mut Bencher) {
+        let mut hasher = fnv::FnvHasher::default();
+        let p = Patch {
+            star: Agent {
+                team: Team::Orange,
+                job_description: JobDescription::Figurehead,
+            },
+            whence: Locale::new(1, 2),
+            whither: Locale::new(3, 4)
+        };
+
+        b.iter(|| {
+            for _ in 0..1000 {
+                p.hash(&mut hasher);
+            }
+        });
+    }
+
+    #[bench]
+    fn benchmark_hashing_patch_xx(b: &mut Bencher) {
+        let mut hasher = XxHash::default();
+        let p = Patch {
+            star: Agent {
+                team: Team::Orange,
+                job_description: JobDescription::Figurehead,
+            },
+            whence: Locale::new(1, 2),
+            whither: Locale::new(3, 4)
+        };
+
+        b.iter(|| {
+            for _ in 0..1000 {
+                p.hash(&mut hasher);
+            }
+        });
+    }
+
+    #[bench]
+    fn benchmark_hashing_patch_sip(b: &mut Bencher) {
+        let mut hasher = hash_map::DefaultHasher::new();
+        let p = Patch {
+            star: Agent {
+                team: Team::Orange,
+                job_description: JobDescription::Figurehead,
+            },
+            whence: Locale::new(1, 2),
+            whither: Locale::new(3, 4)
+        };
+
+        b.iter(|| {
+            for _ in 0..1000 {
+                p.hash(&mut hasher);
+            }
+        });
     }
 
     #[bench]
