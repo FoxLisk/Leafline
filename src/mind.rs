@@ -142,7 +142,7 @@ pub fn score(world: WorldState) -> f32 {
     valuation
 }
 
-fn mmv_lva_heuristic(commit: &Commit) -> f32 {
+fn mvv_lva_heuristic(commit: &Commit) -> f32 {
     // https://chessprogramming.wikispaces.com/MVV-LVA
     match commit.hospitalization {
         Some(patient) => {
@@ -154,22 +154,15 @@ fn mmv_lva_heuristic(commit: &Commit) -> f32 {
 
 fn order_movements_intuitively(
         experience: &HashMap<Patch, u32>, commits: &mut Vec<Commit>) -> Vec<Commit> {
-    //let sorted = Vec::with_capacity(commits.len());
-    //sorted
-    //
-    /*
-    let sorted: Vec<(Commit, Option<u32>)> = commits.into_iter().map(
-        |commit| {
-            (commit, experience.get(&commit.patch))
-        }
-    ).collect();
-    */
-    let mut sorted: Vec<(Commit, Option<&u32>)> = Vec::with_capacity(commits.len());
+    let mut sorted: Vec<(Commit, Option<&u32>, f32)> = Vec::with_capacity(commits.len());
     for c in commits {
-        sorted.push((*c, experience.get(&c.patch)));
+        sorted.push((*c, experience.get(&c.patch), mvv_lva_heuristic(&c)));
     }
     sorted.sort_unstable_by(|a, b| {
-        b.1.cmp(&a.1)
+        match b.1.cmp(&a.1) {
+            Ordering::Equal => b.2.partial_cmp(&a.2).unwrap_or(Ordering::Equal),
+            other => other,
+        }
     });
     sorted.iter().map(|c| { c.0 }).collect()
 }
